@@ -7,7 +7,6 @@ import br.com.golden.raspberry.repository.MovieRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class MovieService {
@@ -19,39 +18,42 @@ public class MovieService {
     }
 
     public AwardIntervalResultDTO calculateIntervals() {
-        Map<String, List<Integer>> wins = new HashMap<>();
-        List<Movie> byWinnerTrue = repository.findByWinnerTrue();
+        List<Movie> winners = repository.findByWinnerTrueOrderByYearAsc();
 
-        for (Movie m : byWinnerTrue) {
-            for (String p : m.getProducers().split(" and |, ")) {
-                wins.computeIfAbsent(p.trim(), k -> new ArrayList<>()).add(m.getYear());
+        Map<String, Integer> lastWin = new HashMap<>();
+        List<ProducerIntervalDTO> minList = new ArrayList<>();
+        List<ProducerIntervalDTO> maxList = new ArrayList<>();
+        int min = Integer.MAX_VALUE;
+        int max = Integer.MIN_VALUE;
+
+        for (Movie movie : winners) {
+            int year = movie.getYear();
+
+            for (String raw : movie.getProducers().split(",| and ")) {
+                String producer = raw.trim();
+                Integer previous = lastWin.put(producer, year);
+                if (previous == null) continue;
+
+                int interval = year - previous;
+                ProducerIntervalDTO dto = new ProducerIntervalDTO(producer, interval, previous, year);
+
+                if (interval < min) {
+                    min = interval;
+                    minList.clear();
+                    minList.add(dto);
+                } else if (interval == min) {
+                    minList.add(dto);
+                }
+
+                if (interval > max) {
+                    max = interval;
+                    maxList.clear();
+                    maxList.add(dto);
+                } else if (interval == max) {
+                    maxList.add(dto);
+                }
             }
         }
-
-        List<ProducerIntervalDTO> intervals = new ArrayList<>();
-        wins.forEach((producer, years) -> {
-            if (years.size() < 2) return;
-            Collections.sort(years);
-            for (int i = 1; i < years.size(); i++) {
-                intervals.add(new ProducerIntervalDTO(
-                        producer,
-                        years.get(i) - years.get(i - 1),
-                        years.get(i - 1),
-                        years.get(i)
-                ));
-            }
-        });
-
-        int min = intervals.stream().mapToInt(ProducerIntervalDTO::getInterval).min().orElse(0);
-        int max = intervals.stream().mapToInt(ProducerIntervalDTO::getInterval).max().orElse(0);
-
-        List<ProducerIntervalDTO> minList = intervals.stream()
-                .filter(i -> i.getInterval() == min)
-                .collect(Collectors.toList());
-
-        List<ProducerIntervalDTO> maxList = intervals.stream()
-                .filter(i -> i.getInterval() == max)
-                .collect(Collectors.toList());
 
         return new AwardIntervalResultDTO(minList, maxList);
     }
