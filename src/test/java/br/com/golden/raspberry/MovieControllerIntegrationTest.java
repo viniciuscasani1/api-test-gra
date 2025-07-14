@@ -6,19 +6,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.CoreMatchers.is;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@SpringJUnitWebConfig
 public class MovieControllerIntegrationTest {
 
     private MockMvc mockMvc;
@@ -32,17 +28,21 @@ public class MovieControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Deve retornar os produtores com menor e maior intervalo de prêmios")
-    public void shouldReturnMinAndMaxProducerIntervalsWithExpectedNames() throws Exception {
-        mockMvc.perform(MockMvcRequestBuilders
-                        .get("/producers/intervals")
+    @DisplayName("Deve retornar exatamente os produtores com menor e maior intervalo de prêmios com base no CSV original")
+    public void shouldReturnExactProducerIntervalsFromCsvData() throws Exception {
+        mockMvc.perform(get("/producers/intervals")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.min").exists())
-                .andExpect(jsonPath("$.max").exists())
-                .andExpect(jsonPath("$.min[0].producer").exists())
-                .andExpect(jsonPath("$.max[0].producer").exists())
-                .andExpect(jsonPath("$.min[*].producer", hasItem(is("Joel Silver"))))
-                .andExpect(jsonPath("$.max[*].producer", hasItem(is("Matthew Vaughn"))));
+                .andExpect(jsonPath("$.min", hasSize(1)))
+                .andExpect(jsonPath("$.min[0].producer", is("Joel Silver")))
+                .andExpect(jsonPath("$.min[0].interval", is(1)))
+                .andExpect(jsonPath("$.min[0].previousWin", is(1990)))
+                .andExpect(jsonPath("$.min[0].followingWin", is(1991)))
+
+                .andExpect(jsonPath("$.max", hasSize(1)))
+                .andExpect(jsonPath("$.max[0].producer", is("Matthew Vaughn")))
+                .andExpect(jsonPath("$.max[0].interval", is(10)))
+                .andExpect(jsonPath("$.max[0].previousWin", is(2002)))
+                .andExpect(jsonPath("$.max[0].followingWin", is(2012)));
     }
 }
